@@ -92,83 +92,94 @@ function engineState(){
   const totalAtEnd=players.reduce((s,p)=>s+p.total,0)+remaining*slots;
   const target=players.length?totalAtEnd/players.length:0;
   const minBench=bench.length?Math.min(...bench.map(p=>p.total)):0;
-  // The players most in need of minutes are the only recommended incoming pool.
   const incomingPool=bench.filter(p=>p.total===minBench);
-  // Protect somebody who has just entered. Once their spell develops they can
-  // naturally become a candidate again. Everyone else on the pitch gets one
-  // best recommendation.
-  const outgoingPool=on.filter(p=>p.spell>=180 || p.lastOnAt===0 || p.lastOnAt==null);
-  return {on,bench,remaining,slots,target,minBench,incomingPool,outgoingPool};
+  return {on,bench,remaining,slots,target,minBench,incomingPool};
+}
+function rowOptions(off){
+  if(!firstSubMade) return [];
+  const st=engineState();
+  return st.incomingPool.map(incoming=>({off,incoming,...projectSwap(off,incoming,st.target,st.remaining,st.slots,st.bench.length)})).sort((a,b)=>a.score-b.score);
+}
+function playerEligible(off){
+  if(!firstSubMade) return {ok:false,reason:"First change is coach-led"};
+  const st=engineState();
+  if(!st.incomingPool.length) return {ok:false,reason:"No bench player needs minutes"};
+  // Do not offer a player when the engine says keeping them on is clearly more
+  // useful to balance than replacing them. This naturally protects a recent
+  // arrival without relying on the next substitution to unlock them.
+  const leastBench=st.minBench;
+  const recentArrival=off.lastOnAt!=null && off.lastOnAt>0;
+  if(recentArrival && off.total <= leastBench + Math.min(180, Math.max(30, st.remaining/10))){
+    return {ok:false,reason:"Needs more game time"};
+  }
+  return {ok:true,reason:""};
 }
 function suggestionOptions(){
   if(!firstSubMade) return [];
-  const st=engineState();
-  if(!st.on.length||!st.bench.length||!st.incomingPool.length) return [];
-  const chosen=[];
-  for(const off of st.outgoingPool){
-    let best=null;
-    for(const incoming of st.incomingPool){
-      const calc=projectSwap(off,incoming,st.target,st.remaining,st.slots,st.bench.length);
-      const option={off,incoming,...calc};
-      if(!best || option.score<best.score) best=option;
-    }
-    if(best) chosen.push(best);
-  }
-  return chosen.sort((a,b)=>a.score-b.score);
+  const out=[];
+  engineState().on.forEach(off=>{
+    const e=playerEligible(off); if(!e.ok) return;
+    const best=rowOptions(off)[0]; if(best) out.push(best);
+  });
+  return out.sort((a,b)=>a.score-b.score);
 }
-function renderSuggestions(){
+function gridPlayer(p){
+  return `<div class="grid-player"><span class="grid-shirt">#${p.number}</span> <span class="grid-name">${p.name}</span><span class="grid-meta">Spell ${fmt(p.spell)} · Total ${fmt(p.total)}</span></div>`;
+}
+function gridOption(o,i){
+  return `<button class="grid-option ${i===0?"best":""}" data-off="${o.off.id}" data-on="${o.incoming.id}"><span class="grid-shirt">#${o.incoming.number}</span> <span class="grid-name">${o.incoming.name}</span><span class="grid-meta">Total ${fmt(o.incoming.total)} · ${i===0?"best balance":"alternative"}</span></button>`;
+}
+function renderRotationGrid(){
+  const st=engineState();
+  const maxCols=Math.max(1,st.incomingPool.length);
+  $("#rotationGrid").style.setProperty("--bench-cols",maxCols);
   if(!firstSubMade){
-    $("#suggestions").innerHTML=`<p class="subtle">No suggestions yet. Make the first substitution using <strong>Coach override</strong>; the balance engine will then optimise the rest of the match.</p>`;
-    renderDebug([]); return;
+    $("#gridState").textContent="Waiting for first change";
+    $("#gridHelp").textContent="The first substitution is coach-led. Tap Make substitution when the coach is ready.";
+    $("#rotationGrid").innerHTML=st.on.map(p=>`<div class="rotation-row" style="--bench-cols:1">${gridPlayer(p)}<div class="grid-empty">No suggestions yet</div></div>`).join("");
+    return;
   }
-  const opts=suggestionOptions();
-  $("#suggestions").innerHTML=opts.length?opts.map((o,i)=>`
-    <button class="suggestion" data-off="${o.off.id}" data-on="${o.incoming.id}">
-      <span class="rank">${i+1}</span>
-      <span class="swap">#${o.off.number} ${o.off.name} OFF → #${o.incoming.number} ${o.incoming.name} ON</span>
-      <span class="reason">${i===0?"Best projected balance":"Alternative for this player"}</span>
-    </button>`).join(""):`<p class="subtle">No balanced substitution is currently recommended.</p>`;
-  document.querySelectorAll(".suggestion").forEach(b=>b.onclick=()=>sub(+b.dataset.off,+b.dataset.on,"Suggested change"));
-  renderDebug(opts);
+  $("#gridState").textContent=`${fmt(st.remaining)} remaining`;
+  $("#gridHelp").textContent="Each row shows the best bench options for that on-pitch player. Tap a replacement to make the change.";
+  const head=`<div class="rotation-row rotation-head"><div>On pitch</div>${st.incomingPool.map((_,i)=>`<div>${i===0?"Best":"Option "+(i+1)}</div>`).join("")}</div>`;
+  const rows=st.on.map(off=>{
+    const eligibility=playerEligible(off);
+    if(!eligibility.ok) return `<div class="rotation-row">${gridPlayer(off)}<div class="grid-empty" style="grid-column:span ${maxCols}">${eligibility.reason}</div></div>`;
+    const opts=rowOptions(off);
+    return `<div class="rotation-row">${gridPlayer(off)}${opts.map(gridOption).join("")}</div>`;
+  }).join("");
+  $("#rotationGrid").innerHTML=head+rows;
+  document.querySelectorAll(".grid-option").forEach(b=>b.onclick=()=>sub(+b.dataset.off,+b.dataset.on,"Suggested change"));
 }
 function renderDebug(opts=suggestionOptions()){
   if(!$("#debugOutput")) return;
-  const st=engineState();
-  const lines=[];
+  const st=engineState(), lines=[];
   lines.push(`Match: ${fmt(elapsed)} elapsed | ${fmt(st.remaining)} remaining | ${st.slots} on pitch`);
-  lines.push(`Projected equal-share destination from now: ${fmt(Math.round(st.target))}`);
-  lines.push(`First substitution made: ${firstSubMade?"YES":"NO"}`);
-  lines.push(`Last decision: ${lastDecision}`);
-  lines.push("");
+  lines.push(`Projected equal-share destination: ${fmt(Math.round(st.target))}`);
+  lines.push(`First coach-led substitution: ${firstSubMade?"YES":"NO"}`);
+  lines.push(`Last decision: ${lastDecision}`,"");
   lines.push("PLAYER STATE");
   players.forEach(p=>lines.push(`#${p.number} ${p.name.padEnd(10)} ${p.on?"ON   ":"BENCH"} total ${fmt(p.total)}${p.on?` | spell ${fmt(p.spell)}`:""}`));
   lines.push("");
-  if(!firstSubMade){
-    lines.push("ENGINE: Waiting for the coach-led first substitution. No recommendations are calculated yet.");
-  } else {
-    lines.push(`Incoming pool (lowest bench total ${fmt(st.minBench)}): ${st.incomingPool.map(p=>p.name).join(", ")||"none"}`);
-    const excluded=st.bench.filter(p=>!st.incomingPool.includes(p));
-    if(excluded.length) lines.push(`Bench excluded for now (more accumulated time): ${excluded.map(p=>`${p.name} ${fmt(p.total)}`).join(", ")}`);
-    const protectedOn=st.on.filter(p=>!st.outgoingPool.includes(p));
-    if(protectedOn.length) lines.push(`Temporarily protected after coming on: ${protectedOn.map(p=>`${p.name} spell ${fmt(p.spell)}`).join(", ")}`);
-    lines.push("");
-    lines.push("RANKED RECOMMENDATIONS");
-    opts.forEach((o,i)=>{
-      const finals=players.map(p=>`${p.name} ${fmt(Math.round(o.projected.get(p.id)))}`).join(" | ");
-      lines.push(`${i+1}. ${o.off.name} OFF -> ${o.incoming.name} ON | fairness ${Math.round(o.fairness)} | stability ${Math.round(o.stability)} | score ${Math.round(o.score)}`);
-      lines.push(`   projected: ${finals}`);
+  if(!firstSubMade){ lines.push("ENGINE: inactive until the first coach-led substitution."); }
+  else {
+    lines.push(`Lowest bench total: ${fmt(st.minBench)}`);
+    lines.push(`Incoming pool: ${st.incomingPool.map(p=>p.name).join(", ")||"none"}`,"");
+    st.on.forEach(off=>{
+      const e=playerEligible(off);
+      lines.push(`${off.name}: ${e.ok?"eligible":"no suggestions — "+e.reason}`);
+      if(e.ok) rowOptions(off).forEach((o,i)=>lines.push(`  ${i+1}. ${o.incoming.name} | fairness ${Math.round(o.fairness)} | stability ${Math.round(o.stability)} | score ${Math.round(o.score)}`));
     });
   }
   $("#debugOutput").textContent=lines.join("\n");
-  $("#debugState").textContent=firstSubMade?`${opts.length} suggestion${opts.length===1?"":"s"}`:"waiting for first sub";
+  $("#debugState").textContent=firstSubMade?"engine active":"waiting for first sub";
 }
 function renderMatch(){
   $("#matchClock").textContent=fmt(elapsed);
   $("#periodLabel").textContent=periodName(currentPeriod());
-  $("#pitchTiles").innerHTML=players.filter(p=>p.on).map(p=>matchTile(p)).join("");
-  $("#benchTiles").innerHTML=players.filter(p=>!p.on).map(p=>matchTile(p)).join("");
   $("#pitchCount").textContent=`${players.filter(p=>p.on).length} playing`;
-  renderSuggestions();
+  renderRotationGrid();
+  renderDebug();
 }
 function sub(offId,onId,label="Change"){
   const off=players.find(p=>p.id===offId), incoming=players.find(p=>p.id===onId);

@@ -59,25 +59,20 @@
 
     <section class="panel focus-panel">
       <div class="section-head">
-        <div><p class="eyebrow">NEXT CHANGE</p><h2>Best balance from here</h2></div>
-        <span class="subtle">Coach always decides</span>
+        <div><p class="eyebrow">ROTATION GRID</p><h2>On pitch → suggested replacements</h2></div>
+        <span id="gridState" class="subtle">Waiting for first change</span>
       </div>
-      <div id="suggestions" class="suggestions"></div>
-      <button id="overrideBtn" class="btn outline full">Coach override</button>
+      <p id="gridHelp" class="subtle">The first substitution is coach-led. Suggestions appear after that change.</p>
+      <div id="rotationGrid" class="rotation-grid"></div>
+      <button id="overrideBtn" class="btn outline full">Make substitution</button>
     </section>
 
-    <section class="panel">
-      <div class="section-head"><div><p class="eyebrow">ON PITCH</p><h2>Playing now</h2></div><strong id="pitchCount"></strong></div>
-      <div id="pitchTiles" class="tile-grid match-tiles"></div>
+    <section class="panel compact-actions">
+      <div class="section-head"><div><p class="eyebrow">MATCH CONTROL</p><h2>Change player count</h2></div><strong id="pitchCount"></strong></div>
       <div class="utility-actions">
         <button id="addPitchBtn" class="btn small">+ Add player to pitch</button>
         <button id="removePitchBtn" class="btn small">− Remove player from pitch</button>
       </div>
-    </section>
-
-    <section class="panel">
-      <div class="section-head"><div><p class="eyebrow">BENCH</p><h2>Waiting</h2></div></div>
-      <div id="benchTiles" class="tile-grid match-tiles"></div>
     </section>
     <p id="status" class="message center" aria-live="polite"></p>
 
