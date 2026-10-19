@@ -25,16 +25,16 @@ function renderSetup(){
     if(p.on){p.on=false}else if(players.filter(x=>x.on).length<desiredStarters){p.on=true}
     renderSetup();
   });
-  document.querySelectorAll(".num-edit").forEach(i=>i.oninput=e=>players.find(p=>p.id==e.target.dataset.id).number=e.target.value||0);
-  document.querySelectorAll(".name-edit").forEach(i=>i.oninput=e=>players.find(p=>p.id==e.target.dataset.id).name=e.target.value||"Player");
+  document.querySelectorAll(".num-edit").forEach(i=>i.onchange=e=>{players.find(p=>p.id==e.target.dataset.id).number=e.target.value||0;});
+  document.querySelectorAll(".name-edit").forEach(i=>i.onchange=e=>{players.find(p=>p.id==e.target.dataset.id).name=e.target.value.trim()||"Player";});
 }
-$("#startingCount").oninput=e=>{
+$("#startingCount").addEventListener("change",e=>{
   desiredStarters=Math.max(1,Math.min(players.length,+e.target.value||1));
   const selected=players.filter(p=>p.on);
   if(selected.length>desiredStarters) selected.slice(desiredStarters).forEach(p=>p.on=false);
   if(selected.length<desiredStarters) players.filter(p=>!p.on).slice(0,desiredStarters-selected.length).forEach(p=>p.on=true);
   renderSetup();
-};
+});
 
 function matchTile(p,clickable=false){
   return `<button class="player-tile ${p.on?"on":""}" ${clickable?"":"tabindex='-1'"} data-id="${p.id}">
@@ -43,7 +43,7 @@ function matchTile(p,clickable=false){
   </button>`;
 }
 function currentPeriod(){
-  return Math.min(periods,Math.floor(elapsed/periodLength)+1);
+  return Math.max(1,Math.min(periods,Math.floor(elapsed/periodLength)+1));
 }
 function periodName(n){
   if(periods===2) return n===1?"1st half":"2nd half";
@@ -111,18 +111,32 @@ function tick(){
   players.forEach(p=>{if(p.on){p.total++;p.spell++;}});
   renderMatch();
 }
-$("#startMatch").onclick=()=>{
-  const hm=Math.max(5,+$("#halfMinutes").value||20);
-  periods=Math.max(1,+$("#periodCount").value||2);
-  periodLength=hm*60;matchLength=periodLength*periods;
-  desiredStarters=Math.max(1,+$("#startingCount").value||5);
-  if(players.filter(p=>p.on).length!==desiredStarters){
-    $("#setupMessage").textContent=`Please select exactly ${desiredStarters} starters.`;return;
+$("#startMatch").addEventListener("click",()=>{
+  try {
+    const hm=Math.max(5,Number($("#halfMinutes").value)||20);
+    periods=Math.max(1,Number($("#periodCount").value)||2);
+    desiredStarters=Math.max(1,Math.min(players.length,Number($("#startingCount").value)||5));
+    periodLength=hm*60; matchLength=periodLength*periods;
+    const selected=players.filter(p=>p.on).length;
+    if(selected!==desiredStarters){
+      $("#setupMessage").textContent=`Select exactly ${desiredStarters} starters (currently ${selected}).`;
+      return;
+    }
+    $("#setupMessage").textContent="";
+    elapsed=0; players.forEach(p=>{p.total=0;p.spell=0;});
+    $("#setupScreen").hidden=true;
+    $("#matchScreen").hidden=false;
+    running=true;
+    $("#pauseBtn").textContent="Pause";
+    clearInterval(timer); timer=setInterval(tick,1000);
+    $("#status").textContent="Match started.";
+    renderMatch();
+    window.scrollTo({top:0,behavior:"instant"});
+  } catch(err) {
+    console.error(err);
+    $("#setupMessage").textContent="Could not start the match. Please refresh and try again.";
   }
-  $("#setupScreen").hidden=true;$("#matchScreen").hidden=false;
-  running=true;$("#pauseBtn").textContent="Pause";timer=setInterval(tick,1000);
-  $("#status").textContent="Match started.";renderMatch();
-};
+});
 $("#pauseBtn").onclick=()=>{
   running=!running;$("#pauseBtn").textContent=running?"Pause":"Resume";
   clearInterval(timer);if(running)timer=setInterval(tick,1000);
