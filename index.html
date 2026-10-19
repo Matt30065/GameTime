@@ -52,6 +52,7 @@
       </div>
       <div class="header-buttons">
         <button id="pauseBtn" class="btn primary">Pause</button>
+        <button id="debugBtn" class="btn">Debug</button>
         <button id="endBtn" class="btn">End match</button>
       </div>
     </header>
@@ -79,6 +80,11 @@
       <div id="benchTiles" class="tile-grid match-tiles"></div>
     </section>
     <p id="status" class="message center" aria-live="polite"></p>
+
+    <section id="debugPanel" class="panel debug-panel" hidden>
+      <div class="section-head"><div><p class="eyebrow">ENGINE DEBUG</p><h2>Why these suggestions?</h2></div><span id="debugState" class="subtle"></span></div>
+      <pre id="debugOutput" class="debug-output"></pre>
+    </section>
   </section>
 </main>
 

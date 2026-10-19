@@ -2,6 +2,8 @@ const names=["Alex","Ben","Charlie","Dylan","Ethan","Sam","Jamie","Noah","Leo","
 let players=names.map((name,i)=>({id:i,name,number:i+1,on:i<5,total:0,spell:0,lastOnAt:i<5?0:null,lastOffAt:i<5?null:0}));
 let elapsed=0,running=false,timer=null,matchLength=2400,periodLength=1200,periods=2,desiredStarters=5;
 let overrideOff=null;
+let firstSubMade=false;
+let lastDecision="No substitution yet";
 
 const $=s=>document.querySelector(s);
 const fmt=s=>`${String(Math.floor(Math.max(0,s)/60)).padStart(2,"0")}:${String(Math.max(0,s)%60).padStart(2,"0")}`;
@@ -50,77 +52,115 @@ function periodName(n){
   return `Period ${n} of ${periods}`;
 }
 
-/* Balance engine v3
-   The equal share is a full-time destination, not a substitution trigger.
-   Each possible swap is projected against the time remaining. We also apply
-   a fading stability cost so the engine does not immediately undo a change:
-   - taking off somebody who has only just come on is expensive;
-   - bringing back somebody who has only just gone off is expensive.
-   These are soft penalties, not bans, so unusual grassroots situations remain
-   possible. The displayed top five are diversified by outgoing player. */
+/* Balance engine v4
+   1) No suggestions before the first coach-led substitution.
+   2) After that, only bench players currently most in need of minutes are
+      considered as incoming recommendations. This prevents an immediately
+      removed high-minute player being recommended straight back on while
+      lower-minute bench players are available.
+   3) We return at most one best incoming option for each sensible outgoing
+      player, rather than an arbitrary Top 5.
+   4) Remaining match time is part of every projection.
+   5) A soft stability penalty protects players who have only just come on.
+*/
 function stabilityPenalty(off,incoming){
-  const MIN_STABLE_SPELL=4*60;   // strongest protection during first 4 mins on
-  const MIN_BENCH_REST=3*60;     // strongest protection during first 3 mins off
-  const offShortfall=Math.max(0,MIN_STABLE_SPELL-off.spell)/MIN_STABLE_SPELL;
+  const ON_PROTECTION=3*60;
+  const BENCH_PROTECTION=2*60;
+  const offShortfall=Math.max(0,ON_PROTECTION-off.spell)/ON_PROTECTION;
   const benchRest=incoming.lastOffAt==null ? Infinity : Math.max(0,elapsed-incoming.lastOffAt);
-  const restShortfall=Math.max(0,MIN_BENCH_REST-benchRest)/MIN_BENCH_REST;
-  // Scale in squared-seconds, comparable with the fairness score below.
-  return (offShortfall*offShortfall*90000)+(restShortfall*restShortfall*70000);
+  const restShortfall=Math.max(0,BENCH_PROTECTION-benchRest)/BENCH_PROTECTION;
+  return (offShortfall*offShortfall*120000)+(restShortfall*restShortfall*60000);
+}
+function projectSwap(off,incoming,target,remaining,slots,benchCount){
+  const futureOn=players.filter(p=>p.on && p!==off).concat(incoming);
+  const projected=new Map(players.map(p=>[p.id,p.total]));
+  const rotationBlock=Math.min(remaining,Math.max(90,remaining/(Math.max(1,benchCount)+1)));
+  futureOn.forEach(p=>projected.set(p.id,projected.get(p.id)+rotationBlock));
+  const futureCapacity=Math.max(0,remaining-rotationBlock)*slots;
+  const deficits=players.map(p=>Math.max(0,target-projected.get(p.id)));
+  const deficitTotal=deficits.reduce((a,b)=>a+b,0);
+  if(deficitTotal>0){
+    players.forEach((p,i)=>projected.set(p.id,projected.get(p.id)+futureCapacity*(deficits[i]/deficitTotal)));
+  }
+  const fairness=players.reduce((sum,p)=>sum+Math.pow(projected.get(p.id)-target,2),0);
+  const stability=stabilityPenalty(off,incoming);
+  return {score:fairness+stability,fairness,stability,projected,rotationBlock};
+}
+function engineState(){
+  const on=players.filter(p=>p.on), bench=players.filter(p=>!p.on);
+  const remaining=Math.max(0,matchLength-elapsed), slots=on.length;
+  const totalAtEnd=players.reduce((s,p)=>s+p.total,0)+remaining*slots;
+  const target=players.length?totalAtEnd/players.length:0;
+  const minBench=bench.length?Math.min(...bench.map(p=>p.total)):0;
+  // The players most in need of minutes are the only recommended incoming pool.
+  const incomingPool=bench.filter(p=>p.total===minBench);
+  // Protect somebody who has just entered. Once their spell develops they can
+  // naturally become a candidate again. Everyone else on the pitch gets one
+  // best recommendation.
+  const outgoingPool=on.filter(p=>p.spell>=180 || p.lastOnAt===0 || p.lastOnAt==null);
+  return {on,bench,remaining,slots,target,minBench,incomingPool,outgoingPool};
 }
 function suggestionOptions(){
-  const on=players.filter(p=>p.on), bench=players.filter(p=>!p.on);
-  if(!on.length||!bench.length) return [];
-  const remaining=Math.max(0,matchLength-elapsed);
-  const slots=on.length;
-  const totalAtEnd=players.reduce((s,p)=>s+p.total,0)+remaining*slots;
-  const target=totalAtEnd/players.length;
-  const all=[];
-
-  for(const off of on) for(const incoming of bench){
-    const futureOn=on.filter(p=>p!==off).concat(incoming);
-    const projected=new Map(players.map(p=>[p.id,p.total]));
-
-    // Look one sensible rotation block ahead, then allocate the rest toward
-    // each player's remaining deficit. This makes time-left part of the score.
-    const rotationBlock=Math.min(remaining,Math.max(90,remaining/(Math.max(1,bench.length)+1)));
-    futureOn.forEach(p=>projected.set(p.id,projected.get(p.id)+rotationBlock));
-    const futureCapacity=Math.max(0,remaining-rotationBlock)*slots;
-    const deficits=players.map(p=>Math.max(0,target-projected.get(p.id)));
-    const deficitTotal=deficits.reduce((a,b)=>a+b,0);
-    if(deficitTotal>0){
-      players.forEach((p,i)=>projected.set(p.id,projected.get(p.id)+futureCapacity*(deficits[i]/deficitTotal)));
+  if(!firstSubMade) return [];
+  const st=engineState();
+  if(!st.on.length||!st.bench.length||!st.incomingPool.length) return [];
+  const chosen=[];
+  for(const off of st.outgoingPool){
+    let best=null;
+    for(const incoming of st.incomingPool){
+      const calc=projectSwap(off,incoming,st.target,st.remaining,st.slots,st.bench.length);
+      const option={off,incoming,...calc};
+      if(!best || option.score<best.score) best=option;
     }
-
-    const fairness=players.reduce((sum,p)=>sum+Math.pow(projected.get(p.id)-target,2),0);
-    const stability=stabilityPenalty(off,incoming);
-    all.push({off,incoming,score:fairness+stability,fairness,stability});
+    if(best) chosen.push(best);
   }
-  all.sort((a,b)=>a.score-b.score);
-
-  // Give the coach genuinely different choices: first take the best option for
-  // each different outgoing player, then fill any spare slots by overall score.
-  const chosen=[], usedOff=new Set();
-  for(const option of all){
-    if(!usedOff.has(option.off.id)){
-      chosen.push(option); usedOff.add(option.off.id);
-      if(chosen.length===5) return chosen;
-    }
-  }
-  for(const option of all){
-    if(!chosen.includes(option)) chosen.push(option);
-    if(chosen.length===5) break;
-  }
-  return chosen;
+  return chosen.sort((a,b)=>a.score-b.score);
 }
 function renderSuggestions(){
+  if(!firstSubMade){
+    $("#suggestions").innerHTML=`<p class="subtle">No suggestions yet. Make the first substitution using <strong>Coach override</strong>; the balance engine will then optimise the rest of the match.</p>`;
+    renderDebug([]); return;
+  }
   const opts=suggestionOptions();
   $("#suggestions").innerHTML=opts.length?opts.map((o,i)=>`
     <button class="suggestion" data-off="${o.off.id}" data-on="${o.incoming.id}">
       <span class="rank">${i+1}</span>
       <span class="swap">#${o.off.number} ${o.off.name} OFF → #${o.incoming.number} ${o.incoming.name} ON</span>
-      <span class="reason">${i===0?"Best projected balance":"Alternative"}</span>
-    </button>`).join(""):`<p class="subtle">No one-for-one substitution available.</p>`;
+      <span class="reason">${i===0?"Best projected balance":"Alternative for this player"}</span>
+    </button>`).join(""):`<p class="subtle">No balanced substitution is currently recommended.</p>`;
   document.querySelectorAll(".suggestion").forEach(b=>b.onclick=()=>sub(+b.dataset.off,+b.dataset.on,"Suggested change"));
+  renderDebug(opts);
+}
+function renderDebug(opts=suggestionOptions()){
+  if(!$("#debugOutput")) return;
+  const st=engineState();
+  const lines=[];
+  lines.push(`Match: ${fmt(elapsed)} elapsed | ${fmt(st.remaining)} remaining | ${st.slots} on pitch`);
+  lines.push(`Projected equal-share destination from now: ${fmt(Math.round(st.target))}`);
+  lines.push(`First substitution made: ${firstSubMade?"YES":"NO"}`);
+  lines.push(`Last decision: ${lastDecision}`);
+  lines.push("");
+  lines.push("PLAYER STATE");
+  players.forEach(p=>lines.push(`#${p.number} ${p.name.padEnd(10)} ${p.on?"ON   ":"BENCH"} total ${fmt(p.total)}${p.on?` | spell ${fmt(p.spell)}`:""}`));
+  lines.push("");
+  if(!firstSubMade){
+    lines.push("ENGINE: Waiting for the coach-led first substitution. No recommendations are calculated yet.");
+  } else {
+    lines.push(`Incoming pool (lowest bench total ${fmt(st.minBench)}): ${st.incomingPool.map(p=>p.name).join(", ")||"none"}`);
+    const excluded=st.bench.filter(p=>!st.incomingPool.includes(p));
+    if(excluded.length) lines.push(`Bench excluded for now (more accumulated time): ${excluded.map(p=>`${p.name} ${fmt(p.total)}`).join(", ")}`);
+    const protectedOn=st.on.filter(p=>!st.outgoingPool.includes(p));
+    if(protectedOn.length) lines.push(`Temporarily protected after coming on: ${protectedOn.map(p=>`${p.name} spell ${fmt(p.spell)}`).join(", ")}`);
+    lines.push("");
+    lines.push("RANKED RECOMMENDATIONS");
+    opts.forEach((o,i)=>{
+      const finals=players.map(p=>`${p.name} ${fmt(Math.round(o.projected.get(p.id)))}`).join(" | ");
+      lines.push(`${i+1}. ${o.off.name} OFF -> ${o.incoming.name} ON | fairness ${Math.round(o.fairness)} | stability ${Math.round(o.stability)} | score ${Math.round(o.score)}`);
+      lines.push(`   projected: ${finals}`);
+    });
+  }
+  $("#debugOutput").textContent=lines.join("\n");
+  $("#debugState").textContent=firstSubMade?`${opts.length} suggestion${opts.length===1?"":"s"}`:"waiting for first sub";
 }
 function renderMatch(){
   $("#matchClock").textContent=fmt(elapsed);
@@ -134,6 +174,8 @@ function sub(offId,onId,label="Change"){
   const off=players.find(p=>p.id===offId), incoming=players.find(p=>p.id===onId);
   if(!off?.on||!incoming||incoming.on)return;
   off.on=false;off.spell=0;off.lastOffAt=elapsed;incoming.on=true;incoming.spell=0;incoming.lastOnAt=elapsed;
+  firstSubMade=true;
+  lastDecision=`${label}: ${off.name} off, ${incoming.name} on at ${fmt(elapsed)}`;
   $("#status").textContent=`${label}: #${off.number} ${off.name} off, #${incoming.number} ${incoming.name} on.`;
   renderMatch();
 }
@@ -155,7 +197,7 @@ $("#startMatch").addEventListener("click",()=>{
       return;
     }
     $("#setupMessage").textContent="";
-    elapsed=0; players.forEach(p=>{p.total=0;p.spell=0;});
+    elapsed=0; firstSubMade=false; lastDecision="No substitution yet"; players.forEach(p=>{p.total=0;p.spell=0;p.lastOnAt=p.on?0:null;p.lastOffAt=p.on?null:0;});
     $("#setupScreen").hidden=true;
     $("#matchScreen").hidden=false;
     running=true;
@@ -209,6 +251,14 @@ function openSingle(mode){
 $("#addPitchBtn").onclick=()=>openSingle("add");
 $("#removePitchBtn").onclick=()=>openSingle("remove");
 $("#cancelSingle").onclick=()=>$("#singleActionDialog").close();
+
+
+$("#debugBtn").onclick=()=>{
+  const panel=$("#debugPanel");
+  panel.hidden=!panel.hidden;
+  $("#debugBtn").textContent=panel.hidden?"Debug":"Hide debug";
+  if(!panel.hidden) renderDebug();
+};
 
 function finish(){
   running=false;clearInterval(timer);
