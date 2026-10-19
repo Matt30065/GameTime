@@ -2,69 +2,112 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#102419">
   <title>Game Time Assistant</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <main class="app">
-  <header class="topbar">
-    <div>
-      <p class="eyebrow">GAME TIME ASSISTANT</p>
-      <div id="matchClock" class="clock">00:00</div>
-    </div>
-    <div class="top-actions">
-      <button id="startPauseBtn" class="btn primary">Start match</button>
-      <button id="endMatchBtn" class="btn danger">End match</button>
-    </div>
-  </header>
+  <section id="setupScreen">
+    <header class="hero">
+      <p class="eyebrow">GRASSROOTS FOOTBALL</p>
+      <h1>Game Time Assistant</h1>
+      <p>Set up the match, tap your starters, then let the app keep an eye on game-time balance.</p>
+    </header>
 
-  <section class="suggestions panel">
-    <div class="section-heading">
-      <div>
-        <p class="eyebrow">NEXT CHANGE</p>
-        <h2>Balanced game-time suggestions</h2>
+    <div class="panel setup-panel">
+      <h2>Match setup</h2>
+      <div class="settings-grid">
+        <label>Minutes per half
+          <input id="halfMinutes" type="number" min="5" max="60" value="20">
+        </label>
+        <label>Number of halves / periods
+          <input id="periodCount" type="number" min="1" max="6" value="2">
+        </label>
+        <label>Starting players on pitch
+          <input id="startingCount" type="number" min="1" max="10" value="5">
+        </label>
       </div>
-      <span class="hint">Tap any suggestion to make it</span>
+      <p class="help">Tap the player tiles below to choose today's starters. Shirt numbers and names can be edited before kick-off.</p>
     </div>
-    <div id="suggestionList" class="suggestion-list"></div>
-    <button id="overrideBtn" class="btn override">Coach override</button>
-  </section>
 
-  <section class="players-grid">
     <div class="panel">
-      <div class="section-heading"><h2>On pitch</h2><span>5 players</span></div>
-      <div id="onPitch" class="player-list"></div>
-    </div>
-    <div class="panel">
-      <div class="section-heading"><h2>Bench</h2><span>5 players</span></div>
-      <div id="bench" class="player-list"></div>
+      <div class="section-head">
+        <div><p class="eyebrow">TODAY'S SQUAD</p><h2>Select starters</h2></div>
+        <strong id="starterCount">5 / 5 selected</strong>
+      </div>
+      <div id="setupPlayers" class="tile-grid"></div>
+      <button id="startMatch" class="btn primary full">Start match</button>
+      <p id="setupMessage" class="message"></p>
     </div>
   </section>
 
-  <p id="status" class="status" aria-live="polite">Ready for kick-off.</p>
+  <section id="matchScreen" hidden>
+    <header class="match-header">
+      <div>
+        <p class="eyebrow">MATCH TIME</p>
+        <div id="matchClock" class="clock">00:00</div>
+        <div id="periodLabel" class="subtle">1st half</div>
+      </div>
+      <div class="header-buttons">
+        <button id="pauseBtn" class="btn primary">Pause</button>
+        <button id="endBtn" class="btn">End match</button>
+      </div>
+    </header>
+
+    <section class="panel focus-panel">
+      <div class="section-head">
+        <div><p class="eyebrow">NEXT CHANGE</p><h2>Best balance from here</h2></div>
+        <span class="subtle">Coach always decides</span>
+      </div>
+      <div id="suggestions" class="suggestions"></div>
+      <button id="overrideBtn" class="btn outline full">Coach override</button>
+    </section>
+
+    <section class="panel">
+      <div class="section-head"><div><p class="eyebrow">ON PITCH</p><h2>Playing now</h2></div><strong id="pitchCount"></strong></div>
+      <div id="pitchTiles" class="tile-grid match-tiles"></div>
+      <div class="utility-actions">
+        <button id="addPitchBtn" class="btn small">+ Add player to pitch</button>
+        <button id="removePitchBtn" class="btn small">− Remove player from pitch</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="section-head"><div><p class="eyebrow">BENCH</p><h2>Waiting</h2></div></div>
+      <div id="benchTiles" class="tile-grid match-tiles"></div>
+    </section>
+    <p id="status" class="message center" aria-live="polite"></p>
+  </section>
 </main>
 
 <dialog id="overrideDialog">
-  <form method="dialog" id="overrideForm">
-    <h2>Coach override</h2>
-    <p>Choose any player to come off and any player to go on.</p>
-    <label>Player off<select id="offSelect"></select></label>
-    <label>Player on<select id="onSelect"></select></label>
-    <div class="dialog-actions">
-      <button value="cancel" class="btn">Cancel</button>
-      <button id="confirmOverride" value="default" class="btn primary">Confirm change</button>
-    </div>
-  </form>
+  <div class="dialog-body">
+    <p class="eyebrow">COACH OVERRIDE</p>
+    <h2 id="overrideTitle">Who is coming off?</h2>
+    <p class="subtle">Two taps: off, then on.</p>
+    <div id="overrideTiles" class="tile-grid"></div>
+    <button id="cancelOverride" class="btn full">Cancel</button>
+  </div>
+</dialog>
+
+<dialog id="singleActionDialog">
+  <div class="dialog-body">
+    <p class="eyebrow" id="singleEyebrow">CHANGE PLAYER COUNT</p>
+    <h2 id="singleTitle"></h2>
+    <div id="singleTiles" class="tile-grid"></div>
+    <button id="cancelSingle" class="btn full">Cancel</button>
+  </div>
 </dialog>
 
 <dialog id="summaryDialog">
-  <div>
+  <div class="dialog-body">
     <p class="eyebrow">FULL TIME</p>
     <h2>Game-time summary</h2>
-    <p id="summaryTarget"></p>
+    <p id="summaryText" class="subtle"></p>
     <div id="summaryList" class="summary-list"></div>
-    <button id="closeSummary" class="btn primary">Close</button>
+    <button id="newMatchBtn" class="btn primary full">New match</button>
   </div>
 </dialog>
 
