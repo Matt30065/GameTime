@@ -1,440 +1,257 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#102419">
-  <title>Game Time Assistant</title>
-  <style>:root{
-  --ink:#142019;--muted:#6a756e;--bg:#f3f6f3;--card:#fff;--line:#dce4de;
-  --green:#176b3a;--green-soft:#edf7f0;--dark:#102419;--amber:#9a6411;
-  font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-}
-*{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink)}
-button,input{font:inherit}.app{width:min(960px,100%);margin:auto;padding:16px 16px 40px}
-.hero{padding:18px 4px}.hero h1{font-size:clamp(1.8rem,6vw,3rem);margin:3px 0 8px}.hero p:last-child{color:var(--muted);max-width:650px}
-.eyebrow{margin:0 0 4px;font-size:.7rem;letter-spacing:.13em;font-weight:900;color:var(--muted)}
-.panel{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:15px;margin-bottom:12px}
-.setup-panel h2,.section-head h2,.dialog-body h2{margin:0}.settings-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
-label{display:grid;gap:6px;font-size:.82rem;font-weight:800}input{width:100%;min-height:46px;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:white}
-.help,.subtle,.message{color:var(--muted);font-size:.83rem}.section-head,.match-header,.header-buttons,.utility-actions{display:flex;align-items:center;justify-content:space-between;gap:10px}
-.tile-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:12px 0}.player-tile{position:relative;min-height:112px;border:1px solid var(--line);border-radius:14px;background:#fafcfb;padding:10px;text-align:center;cursor:pointer}
-.player-tile.selected,.player-tile.on{border:2px solid var(--green);background:var(--green-soft)}.shirt{font-size:2rem;font-weight:950;line-height:1}.player-name{font-size:.8rem;font-weight:850;margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tile-time{font-size:.75rem;color:var(--muted);margin-top:7px;font-variant-numeric:tabular-nums}.tile-time strong{display:block;color:var(--ink)}
-.edit-row{display:grid;grid-template-columns:58px 1fr;gap:6px;margin-top:8px}.edit-row input{min-height:36px;padding:5px;font-size:.75rem;text-align:center}
-.btn{min-height:46px;border:1px solid var(--line);border-radius:12px;background:white;padding:0 15px;font-weight:850;cursor:pointer}.btn.primary{background:var(--dark);border-color:var(--dark);color:white}.btn.outline{border:2px solid var(--dark);background:white}.btn.full{width:100%}.btn.small{min-height:40px;font-size:.8rem}
-.clock{font-size:2.8rem;font-weight:950;line-height:1;font-variant-numeric:tabular-nums}.match-header{padding:10px 2px 15px}.header-buttons{justify-content:flex-end}
-.focus-panel{border-width:2px}.suggestions{display:grid;gap:7px;margin:12px 0}.suggestion{display:grid;grid-template-columns:30px 1fr auto;align-items:center;gap:8px;min-height:54px;border:1px solid var(--line);border-radius:12px;background:#fafcfb;padding:8px 10px;text-align:left;cursor:pointer}.suggestion:first-child{border:2px solid var(--green);background:var(--green-soft)}.rank{font-size:1.1rem;font-weight:950}.swap{font-weight:900}.reason{font-size:.72rem;color:var(--muted)}
-.utility-actions{justify-content:flex-start;flex-wrap:wrap;margin-top:8px}.center{text-align:center}
-dialog{width:min(94vw,620px);max-height:88vh;overflow:auto;border:0;border-radius:18px;padding:0;box-shadow:0 20px 70px #0004}dialog::backdrop{background:#0009}.dialog-body{padding:18px}
-.summary-list{margin:14px 0}.summary-row{display:grid;grid-template-columns:1fr auto auto;gap:12px;border-top:1px solid var(--line);padding:10px 2px}.summary-row strong{font-variant-numeric:tabular-nums}.delta{color:var(--muted);font-size:.82rem}
-@media(max-width:700px){.settings-grid{grid-template-columns:1fr 1fr}.tile-grid{grid-template-columns:repeat(2,1fr)}.match-tiles{grid-template-columns:repeat(3,1fr)}.player-tile{min-height:104px}.section-head{align-items:flex-start}.suggestion{grid-template-columns:26px 1fr}.suggestion .reason{grid-column:2}.header-buttons{flex-direction:column}.header-buttons .btn{min-height:40px}.clock{font-size:2.4rem}}
-@media(max-width:390px){.match-tiles{grid-template-columns:repeat(2,1fr)}.settings-grid{grid-template-columns:1fr}}
-.debug-panel{border-style:dashed}.debug-output{white-space:pre-wrap;overflow:auto;background:#f7f9f7;border:1px solid var(--line);border-radius:12px;padding:12px;font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--ink);max-height:460px}.debug-output strong{font-weight:900}
-
-/* V5 touchline rotation grid */
-.rotation-grid{margin-top:12px;overflow-x:auto}
-.rotation-row{display:grid;grid-template-columns:minmax(145px,1.25fr) repeat(var(--bench-cols,4),minmax(115px,1fr));gap:8px;min-width:max-content;padding:6px 0;border-top:1px solid var(--line)}
-.rotation-row:first-child{border-top:0}.rotation-head{font-size:.7rem;font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;padding-bottom:2px}
-.grid-player,.grid-option,.grid-empty{min-height:70px;border-radius:12px;padding:9px;text-align:left}.grid-player{border:2px solid var(--green);background:var(--green-soft)}
-.grid-option{border:1px solid var(--line);background:#fff;cursor:pointer}.grid-option.best{border-color:var(--green)}.grid-empty{display:flex;align-items:center;border:1px dashed var(--line);color:var(--muted);background:#fafcfb;font-size:.78rem}
-.grid-shirt{font-size:1.2rem;font-weight:950}.grid-name{font-weight:900}.grid-meta{display:block;margin-top:4px;color:var(--muted);font-size:.72rem;font-variant-numeric:tabular-nums}
-.compact-actions{padding-top:12px;padding-bottom:12px}
-@media(max-width:700px){.rotation-row{grid-template-columns:130px repeat(var(--bench-cols,4),105px)}.grid-player,.grid-option,.grid-empty{min-height:66px;padding:8px}}
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#102419">
+<title>Game Time Assistant V9</title>
+<style>
+:root{--ink:#122019;--muted:#6a756e;--bg:#f3f6f3;--card:#fff;--line:#d9e2dc;--green:#126d3a;--soft:#edf7f0;--dark:#0d2a1b}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif}
+button,input{font:inherit}.app{max-width:980px;margin:auto;padding:16px 16px 42px}.eyebrow{margin:0 0 4px;font-size:.69rem;font-weight:900;letter-spacing:.13em;color:var(--muted)}
+h1,h2{margin:0}.hero{padding:14px 2px}.hero p:last-child,.help,.muted,.status{color:var(--muted);font-size:.84rem}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:15px;margin-bottom:12px}.setup-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0}
+label{display:grid;gap:5px;font-size:.8rem;font-weight:800}input{min-height:44px;border:1px solid var(--line);border-radius:10px;padding:7px 9px;background:#fff}
+.squad{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:12px 0}.tile{min-height:105px;border:1px solid var(--line);border-radius:13px;background:#fafcfb;padding:9px;text-align:center;cursor:pointer}.tile.selected{border:2px solid var(--green);background:var(--soft)}
+.num{font-size:1.8rem;font-weight:950;line-height:1}.pname{font-size:.78rem;font-weight:850;margin-top:5px}.edit{display:grid;grid-template-columns:50px 1fr;gap:5px;margin-top:7px}.edit input{min-height:34px;padding:4px;font-size:.73rem;text-align:center}
+.btn{min-height:46px;border:1px solid var(--line);border-radius:12px;background:#fff;padding:0 15px;font-weight:850;cursor:pointer}.primary{background:var(--dark);color:#fff;border-color:var(--dark)}.full{width:100%}.header,.head,.controls,.selection{display:flex;align-items:center;justify-content:space-between;gap:10px}.clock{font-size:2.7rem;font-weight:950;line-height:1;font-variant-numeric:tabular-nums}.controls{justify-content:flex-end;flex-wrap:wrap}
+.priority-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.column{min-width:0}.column-title{display:flex;justify-content:space-between;align-items:end;margin-bottom:8px}.column-title small{color:var(--muted)}
+.priority-list{display:grid;gap:7px}.priority{width:100%;display:grid;grid-template-columns:32px 1fr auto;align-items:center;gap:8px;min-height:64px;border:1px solid var(--line);border-radius:13px;background:#fafcfb;padding:8px;text-align:left;cursor:pointer}.priority:first-child{border:2px solid var(--green);background:var(--soft)}.priority.chosen{outline:3px solid #17251c;outline-offset:1px}.rank{font-weight:950;font-size:1.05rem}.who{font-weight:900}.time{font-size:.73rem;color:var(--muted);text-align:right}.time strong{display:block;color:var(--ink);font-size:.85rem}.selection{margin-top:12px;padding:10px;border-radius:12px;background:#f6f8f6}.selection-text{font-size:.84rem}.status{text-align:center;margin:12px 0}.utility{display:flex;gap:8px;flex-wrap:wrap}.debug{white-space:pre-wrap;font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;background:#f8faf8;border:1px dashed var(--line);border-radius:12px;padding:12px;max-height:330px;overflow:auto}
+dialog{border:0;border-radius:18px;width:min(94vw,600px);padding:0;box-shadow:0 20px 70px #0004}dialog::backdrop{background:#0009}.dialog-body{padding:18px}.summary-row{display:grid;grid-template-columns:1fr auto auto;gap:12px;border-top:1px solid var(--line);padding:9px 2px}.summary-row strong{font-variant-numeric:tabular-nums}
+.version{position:fixed;right:7px;bottom:5px;font-size:10px;color:#7b847e;opacity:.65}
+@media(max-width:700px){.setup-grid{grid-template-columns:1fr 1fr}.squad{grid-template-columns:repeat(2,1fr)}.priority-grid{grid-template-columns:1fr 1fr;gap:7px}.priority{grid-template-columns:24px 1fr;padding:7px;min-height:72px}.priority .time{grid-column:2;text-align:left}.header{align-items:flex-start}.clock{font-size:2.35rem}.controls{flex-direction:column}.controls .btn{min-height:40px}.selection{align-items:flex-start;flex-direction:column}}
+@media(max-width:390px){.setup-grid{grid-template-columns:1fr}.priority-grid{gap:5px}.who{font-size:.82rem}.rank{font-size:.9rem}}
 </style>
 </head>
 <body>
 <main class="app">
-  <section id="setupScreen">
-    <header class="hero">
-      <p class="eyebrow">GRASSROOTS FOOTBALL</p>
-      <h1>Game Time Assistant</h1>
-      <p>Set up the match, tap your starters, then let the app keep an eye on game-time balance.</p>
-    </header>
-
-    <div class="panel setup-panel">
-      <h2>Match setup</h2>
-      <div class="settings-grid">
-        <label>Minutes per half
-          <input id="halfMinutes" type="number" min="5" max="60" value="20">
-        </label>
-        <label>Number of halves / periods
-          <input id="periodCount" type="number" min="1" max="6" value="2">
-        </label>
-        <label>Starting players on pitch
-          <input id="startingCount" type="number" min="1" max="10" value="5">
-        </label>
-      </div>
-      <p class="help">Tap the player tiles below to choose today's starters. Shirt numbers and names can be edited before kick-off.</p>
+<section id="setup">
+  <header class="hero"><p class="eyebrow">GRASSROOTS FOOTBALL</p><h1>Game Time Assistant</h1><p>Set the match, choose today's starters, then the app continuously prioritises who most needs to come off and who most needs to come on.</p></header>
+  <div class="panel">
+    <h2>Match setup</h2>
+    <div class="setup-grid">
+      <label>Minutes per period<input id="periodMinutes" type="number" min="5" max="60" value="20"></label>
+      <label>Periods / halves<input id="periods" type="number" min="1" max="6" value="2"></label>
+      <label>Players on pitch<input id="pitchSize" type="number" min="1" max="10" value="5"></label>
     </div>
+  </div>
+  <div class="panel">
+    <div class="head"><div><p class="eyebrow">SQUAD</p><h2>Choose starters</h2></div><strong id="starterCount"></strong></div>
+    <div id="squad" class="squad"></div>
+    <button id="start" class="btn primary full">Start match</button>
+    <p id="setupMsg" class="status"></p>
+  </div>
+</section>
 
-    <div class="panel">
-      <div class="section-head">
-        <div><p class="eyebrow">TODAY'S SQUAD</p><h2>Select starters</h2></div>
-        <strong id="starterCount">5 / 5 selected</strong>
+<section id="match" hidden>
+  <header class="header">
+    <div><p class="eyebrow">MATCH TIME</p><div id="clock" class="clock">00:00</div><div id="periodLabel" class="muted"></div></div>
+    <div class="controls"><button id="pause" class="btn primary">Pause</button><button id="debugBtn" class="btn">Show debug</button><button id="end" class="btn">End match</button></div>
+  </header>
+
+  <section class="panel">
+    <div class="head">
+      <div><p class="eyebrow">LIVE ROTATION PRIORITY</p><h2>Coach chooses the pairing</h2></div>
+      <span class="muted">Recalculates after every change</span>
+    </div>
+    <p class="help">Left: highest priority to come off. Right: highest priority to come on. Tap one from each column.</p>
+    <div class="priority-grid">
+      <div class="column">
+        <div class="column-title"><strong>ON PITCH — DUE OFF</strong><small>highest first</small></div>
+        <div id="offList" class="priority-list"></div>
       </div>
-      <div id="setupPlayers" class="tile-grid"></div>
-      <button id="startMatch" class="btn primary full">Start match</button>
-      <p id="setupMessage" class="message"></p>
+      <div class="column">
+        <div class="column-title"><strong>BENCH — DUE ON</strong><small>highest first</small></div>
+        <div id="onList" class="priority-list"></div>
+      </div>
+    </div>
+    <div class="selection">
+      <div id="selectionText" class="selection-text">Select a player to come off, then a player to come on.</div>
+      <button id="confirm" class="btn primary" disabled>Confirm substitution</button>
     </div>
   </section>
 
-  <section id="matchScreen" hidden>
-    <header class="match-header">
-      <div>
-        <p class="eyebrow">MATCH TIME</p>
-        <div id="matchClock" class="clock">00:00</div>
-        <div id="periodLabel" class="subtle">1st half</div>
-      </div>
-      <div class="header-buttons">
-        <button id="pauseBtn" class="btn primary">Pause</button>
-        <button id="debugBtn" class="btn">Debug</button>
-        <button id="endBtn" class="btn">End match</button>
-      </div>
-    </header>
-
-    <section class="panel focus-panel">
-      <div class="section-head">
-        <div><p class="eyebrow">ROTATION GRID</p><h2>On pitch → suggested replacements</h2></div>
-        <span id="gridState" class="subtle">Waiting for first change</span>
-      </div>
-      <p id="gridHelp" class="subtle">The first substitution is coach-led. Suggestions appear after that change.</p>
-      <div id="rotationGrid" class="rotation-grid"></div>
-      <button id="overrideBtn" class="btn outline full">Make substitution</button>
-    </section>
-
-    <section class="panel compact-actions">
-      <div class="section-head"><div><p class="eyebrow">MATCH CONTROL</p><h2>Change player count</h2></div><strong id="pitchCount"></strong></div>
-      <div class="utility-actions">
-        <button id="addPitchBtn" class="btn small">+ Add player to pitch</button>
-        <button id="removePitchBtn" class="btn small">− Remove player from pitch</button>
-      </div>
-    </section>
-    <p id="status" class="message center" aria-live="polite"></p>
-
-    <section id="debugPanel" class="panel debug-panel" hidden>
-      <div class="section-head"><div><p class="eyebrow">ENGINE DEBUG</p><h2>Why these suggestions?</h2></div><span id="debugState" class="subtle"></span></div>
-      <pre id="debugOutput" class="debug-output"></pre>
-    </section>
+  <section class="panel">
+    <p class="eyebrow">MATCH CONTROL</p>
+    <div class="utility"><button id="add" class="btn">+ Add player to pitch</button><button id="remove" class="btn">− Remove player from pitch</button></div>
   </section>
+
+  <p id="status" class="status" aria-live="polite">Match started.</p>
+  <section id="debugPanel" class="panel" hidden><p class="eyebrow">ENGINE DEBUG</p><h2>Why this order?</h2><pre id="debug" class="debug"></pre></section>
+</section>
 </main>
 
-<dialog id="overrideDialog">
-  <div class="dialog-body">
-    <p class="eyebrow">COACH OVERRIDE</p>
-    <h2 id="overrideTitle">Who is coming off?</h2>
-    <p class="subtle">Two taps: off, then on.</p>
-    <div id="overrideTiles" class="tile-grid"></div>
-    <button id="cancelOverride" class="btn full">Cancel</button>
-  </div>
-</dialog>
+<dialog id="singleDialog"><div class="dialog-body"><p class="eyebrow">CHANGE PLAYER COUNT</p><h2 id="singleTitle"></h2><div id="singlePlayers" class="squad"></div><button id="singleCancel" class="btn full">Cancel</button></div></dialog>
+<dialog id="summary"><div class="dialog-body"><p class="eyebrow">FULL TIME</p><h2>Game-time summary</h2><p id="summaryText" class="help"></p><div id="summaryRows"></div><button id="newMatch" class="btn primary full">New match</button></div></dialog>
+<div class="version">V9 TWO-COLUMN ENGINE</div>
 
-<dialog id="singleActionDialog">
-  <div class="dialog-body">
-    <p class="eyebrow" id="singleEyebrow">CHANGE PLAYER COUNT</p>
-    <h2 id="singleTitle"></h2>
-    <div id="singleTiles" class="tile-grid"></div>
-    <button id="cancelSingle" class="btn full">Cancel</button>
-  </div>
-</dialog>
-
-<dialog id="summaryDialog">
-  <div class="dialog-body">
-    <p class="eyebrow">FULL TIME</p>
-    <h2>Game-time summary</h2>
-    <p id="summaryText" class="subtle"></p>
-    <div id="summaryList" class="summary-list"></div>
-    <button id="newMatchBtn" class="btn primary full">New match</button>
-  </div>
-</dialog>
-
-<script>const names=["Alex","Ben","Charlie","Dylan","Ethan","Sam","Jamie","Noah","Leo","Owen"];
-let players=names.map((name,i)=>({id:i,name,number:i+1,on:i<5,total:0,spell:0,lastOnAt:i<5?0:null,lastOffAt:i<5?null:0}));
-let elapsed=0,running=false,timer=null,matchLength=2400,periodLength=1200,periods=2,desiredStarters=5;
-let overrideOff=null;
-let firstSubMade=false;
-let lastDecision="No substitution yet";
-
+<script>
+(()=>{
+const names=["Alex","Ben","Charlie","Dylan","Ethan","Sam","Jamie","Noah","Leo","Owen"];
+let players=names.map((name,i)=>({id:i,name,number:i+1,on:i<5,total:0,spell:0,lastOnAt:i<5?0:null,lastOffAt:null}));
+let elapsed=0,periodLength=1200,periodCount=2,matchLength=2400,pitchSize=5,running=false,timer=null,offPick=null,onPick=null;
 const $=s=>document.querySelector(s);
-const fmt=s=>`${String(Math.floor(Math.max(0,s)/60)).padStart(2,"0")}:${String(Math.max(0,s)%60).padStart(2,"0")}`;
+const fmt=s=>{s=Math.max(0,Math.round(s));return String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0")};
 
-function setupTile(p){
-  return `<div class="player-tile ${p.on?"selected":""}" data-id="${p.id}">
-    <div class="shirt">${p.number}</div><div class="player-name">${p.name}</div>
-    <div class="edit-row">
-      <input class="num-edit" data-id="${p.id}" type="number" min="0" max="99" value="${p.number}" aria-label="Shirt number">
-      <input class="name-edit" data-id="${p.id}" value="${p.name}" aria-label="Player name">
-    </div>
-  </div>`;
-}
+function setupTile(p){return `<div class="tile ${p.on?"selected":""}" data-id="${p.id}"><div class="num">${p.number}</div><div class="pname">${p.name}</div><div class="edit"><input class="numEdit" data-id="${p.id}" type="number" min="0" max="99" value="${p.number}"><input class="nameEdit" data-id="${p.id}" value="${p.name}"></div></div>`}
 function renderSetup(){
-  $("#setupPlayers").innerHTML=players.map(setupTile).join("");
-  const count=players.filter(p=>p.on).length;
-  $("#starterCount").textContent=`${count} / ${desiredStarters} selected`;
-  document.querySelectorAll("#setupPlayers .player-tile").forEach(t=>t.onclick=e=>{
-    if(e.target.matches("input")) return;
-    const p=players.find(x=>x.id==t.dataset.id);
-    if(p.on){p.on=false}else if(players.filter(x=>x.on).length<desiredStarters){p.on=true}
-    renderSetup();
-  });
-  document.querySelectorAll(".num-edit").forEach(i=>i.onchange=e=>{players.find(p=>p.id==e.target.dataset.id).number=e.target.value||0;});
-  document.querySelectorAll(".name-edit").forEach(i=>i.onchange=e=>{players.find(p=>p.id==e.target.dataset.id).name=e.target.value.trim()||"Player";});
+  $("#squad").innerHTML=players.map(setupTile).join("");
+  $("#starterCount").textContent=`${players.filter(p=>p.on).length} / ${pitchSize} selected`;
+  document.querySelectorAll("#squad .tile").forEach(t=>t.addEventListener("click",e=>{
+    if(e.target.matches("input"))return;
+    const p=players.find(x=>x.id==t.dataset.id),count=players.filter(x=>x.on).length;
+    if(p.on)p.on=false;else if(count<pitchSize)p.on=true;renderSetup();
+  }));
+  document.querySelectorAll(".numEdit").forEach(i=>i.addEventListener("input",e=>players.find(p=>p.id==e.target.dataset.id).number=e.target.value||0));
+  document.querySelectorAll(".nameEdit").forEach(i=>i.addEventListener("input",e=>players.find(p=>p.id==e.target.dataset.id).name=e.target.value||"Player"));
 }
-$("#startingCount").addEventListener("change",e=>{
-  desiredStarters=Math.max(1,Math.min(players.length,+e.target.value||1));
-  const selected=players.filter(p=>p.on);
-  if(selected.length>desiredStarters) selected.slice(desiredStarters).forEach(p=>p.on=false);
-  if(selected.length<desiredStarters) players.filter(p=>!p.on).slice(0,desiredStarters-selected.length).forEach(p=>p.on=true);
+$("#pitchSize").addEventListener("input",e=>{
+  pitchSize=Math.max(1,Math.min(players.length,+e.target.value||1));
+  let on=players.filter(p=>p.on);
+  if(on.length>pitchSize)on.slice(pitchSize).forEach(p=>p.on=false);
+  if(on.length<pitchSize)players.filter(p=>!p.on).slice(0,pitchSize-on.length).forEach(p=>p.on=true);
   renderSetup();
 });
 
-function matchTile(p,clickable=false){
-  return `<button class="player-tile ${p.on?"on":""}" ${clickable?"":"tabindex='-1'"} data-id="${p.id}">
-    <div class="shirt">${p.number}</div><div class="player-name">${p.name}</div>
-    <div class="tile-time"><strong>${p.on?fmt(p.spell):"BENCH"}</strong>Total ${fmt(p.total)}</div>
+/* The engine solves a small continuous allocation problem.
+   For a candidate state, remaining player-minutes = remaining clock seconds * pitch slots.
+   It allocates those remaining seconds toward the lowest projected totals first ("water filling").
+   This gives the fairest achievable final distribution from NOW, rather than chasing a fixed 20:00.
+   Priority scores ask: how much does fairness improve if this player is taken off / brought on now?
+*/
+function waterFill(totals, capacity){
+  const a=totals.map((v,i)=>({i,v})).sort((x,y)=>x.v-y.v),out=[...totals];
+  let cap=Math.max(0,capacity),level=a[0]?.v||0;
+  for(let k=1;k<a.length;k++){
+    const gap=a[k].v-level,cost=gap*k;
+    if(cap>=cost){for(let j=0;j<k;j++)out[a[j].i]+=gap;cap-=cost;level=a[k].v}
+    else{const add=cap/k;for(let j=0;j<k;j++)out[a[j].i]+=add;cap=0;return out}
+  }
+  if(a.length&&cap>0){const add=cap/a.length;for(const x of a)out[x.i]+=add}
+  return out;
+}
+function variance(vals){const m=vals.reduce((a,b)=>a+b,0)/vals.length;return vals.reduce((s,v)=>s+(v-m)*(v-m),0)/vals.length}
+function baselineProjection(){
+  const remaining=Math.max(0,matchLength-elapsed),slots=players.filter(p=>p.on).length;
+  return waterFill(players.map(p=>p.total),remaining*slots);
+}
+function recentOnPenalty(p){
+  if(p.lastOnAt==null)return 0;
+  const age=elapsed-p.lastOnAt;
+  const protect=180; // soft 3-minute stability window, not a hard lock
+  return age>=protect?0:(protect-age)/protect;
+}
+function recentOffPenalty(p){
+  if(p.lastOffAt==null)return 0;
+  const age=elapsed-p.lastOffAt;
+  const protect=180;
+  return age>=protect?0:(protect-age)/protect;
+}
+function priorities(){
+  const remaining=Math.max(0,matchLength-elapsed),on=players.filter(p=>p.on),bench=players.filter(p=>!p.on),slots=on.length;
+  const projected=baselineProjection(),baseVar=variance(projected);
+  const avgNow=players.reduce((s,p)=>s+p.total,0)/players.length;
+
+  // Due-off: accumulated surplus is primary; current spell breaks close ties.
+  // A just-introduced player receives a soft stability penalty.
+  const off=on.map(p=>{
+    const surplus=p.total-avgNow;
+    const score=surplus*10+p.spell*0.12-recentOnPenalty(p)*1800;
+    return {p,score,surplus,stability:recentOnPenalty(p)};
+  }).sort((a,b)=>b.score-a.score);
+
+  // Due-on: accumulated deficit is primary. Recent removal is softly penalised.
+  const onRank=bench.map(p=>{
+    const deficit=avgNow-p.total;
+    const score=deficit*10-recentOffPenalty(p)*1800;
+    return {p,score,deficit,stability:recentOffPenalty(p)};
+  }).sort((a,b)=>b.score-a.score);
+
+  return {off,onRank,projected,baseVar,remaining,slots};
+}
+function priorityButton(x,type,i){
+  const p=x.p,chosen=(type==="off"?offPick:onPick)===p.id;
+  const note=type==="off"?`spell ${fmt(p.spell)}`:`bench · total ${fmt(p.total)}`;
+  return `<button class="priority ${chosen?"chosen":""}" data-id="${p.id}" data-type="${type}">
+    <span class="rank">${i+1}</span><span><span class="who">#${p.number} ${p.name}</span><br><span class="muted">${note}</span></span>
+    <span class="time"><strong>${fmt(p.total)}</strong>${type==="off"?"total":"played"}</span>
   </button>`;
 }
-function currentPeriod(){
-  return Math.max(1,Math.min(periods,Math.floor(elapsed/periodLength)+1));
-}
-function periodName(n){
-  if(periods===2) return n===1?"1st half":"2nd half";
-  return `Period ${n} of ${periods}`;
-}
-
-/* Balance engine v4
-   1) No suggestions before the first coach-led substitution.
-   2) After that, only bench players currently most in need of minutes are
-      considered as incoming recommendations. This prevents an immediately
-      removed high-minute player being recommended straight back on while
-      lower-minute bench players are available.
-   3) We return at most one best incoming option for each sensible outgoing
-      player, rather than an arbitrary Top 5.
-   4) Remaining match time is part of every projection.
-   5) A soft stability penalty protects players who have only just come on.
-*/
-function stabilityPenalty(off,incoming){
-  const ON_PROTECTION=3*60;
-  const BENCH_PROTECTION=2*60;
-  const offShortfall=Math.max(0,ON_PROTECTION-off.spell)/ON_PROTECTION;
-  const benchRest=incoming.lastOffAt==null ? Infinity : Math.max(0,elapsed-incoming.lastOffAt);
-  const restShortfall=Math.max(0,BENCH_PROTECTION-benchRest)/BENCH_PROTECTION;
-  return (offShortfall*offShortfall*120000)+(restShortfall*restShortfall*60000);
-}
-function projectSwap(off,incoming,target,remaining,slots,benchCount){
-  const futureOn=players.filter(p=>p.on && p!==off).concat(incoming);
-  const projected=new Map(players.map(p=>[p.id,p.total]));
-  const rotationBlock=Math.min(remaining,Math.max(90,remaining/(Math.max(1,benchCount)+1)));
-  futureOn.forEach(p=>projected.set(p.id,projected.get(p.id)+rotationBlock));
-  const futureCapacity=Math.max(0,remaining-rotationBlock)*slots;
-  const deficits=players.map(p=>Math.max(0,target-projected.get(p.id)));
-  const deficitTotal=deficits.reduce((a,b)=>a+b,0);
-  if(deficitTotal>0){
-    players.forEach((p,i)=>projected.set(p.id,projected.get(p.id)+futureCapacity*(deficits[i]/deficitTotal)));
-  }
-  const fairness=players.reduce((sum,p)=>sum+Math.pow(projected.get(p.id)-target,2),0);
-  const stability=stabilityPenalty(off,incoming);
-  return {score:fairness+stability,fairness,stability,projected,rotationBlock};
-}
-function engineState(){
-  const on=players.filter(p=>p.on), bench=players.filter(p=>!p.on);
-  const remaining=Math.max(0,matchLength-elapsed), slots=on.length;
-  const totalAtEnd=players.reduce((s,p)=>s+p.total,0)+remaining*slots;
-  const target=players.length?totalAtEnd/players.length:0;
-  const minBench=bench.length?Math.min(...bench.map(p=>p.total)):0;
-  const incomingPool=bench.filter(p=>p.total===minBench);
-  return {on,bench,remaining,slots,target,minBench,incomingPool};
-}
-function rowOptions(off){
-  if(!firstSubMade) return [];
-  const st=engineState();
-  return st.incomingPool.map(incoming=>({off,incoming,...projectSwap(off,incoming,st.target,st.remaining,st.slots,st.bench.length)})).sort((a,b)=>a.score-b.score);
-}
-function playerEligible(off){
-  if(!firstSubMade) return {ok:false,reason:"First change is coach-led"};
-  const st=engineState();
-  if(!st.incomingPool.length) return {ok:false,reason:"No bench player needs minutes"};
-  // Do not offer a player when the engine says keeping them on is clearly more
-  // useful to balance than replacing them. This naturally protects a recent
-  // arrival without relying on the next substitution to unlock them.
-  const leastBench=st.minBench;
-  const recentArrival=off.lastOnAt!=null && off.lastOnAt>0;
-  if(recentArrival && off.total <= leastBench + Math.min(180, Math.max(30, st.remaining/10))){
-    return {ok:false,reason:"Needs more game time"};
-  }
-  return {ok:true,reason:""};
-}
-function suggestionOptions(){
-  if(!firstSubMade) return [];
-  const out=[];
-  engineState().on.forEach(off=>{
-    const e=playerEligible(off); if(!e.ok) return;
-    const best=rowOptions(off)[0]; if(best) out.push(best);
-  });
-  return out.sort((a,b)=>a.score-b.score);
-}
-function gridPlayer(p){
-  return `<div class="grid-player"><span class="grid-shirt">#${p.number}</span> <span class="grid-name">${p.name}</span><span class="grid-meta">Spell ${fmt(p.spell)} · Total ${fmt(p.total)}</span></div>`;
-}
-function gridOption(o,i){
-  return `<button class="grid-option ${i===0?"best":""}" data-off="${o.off.id}" data-on="${o.incoming.id}"><span class="grid-shirt">#${o.incoming.number}</span> <span class="grid-name">${o.incoming.name}</span><span class="grid-meta">Total ${fmt(o.incoming.total)} · ${i===0?"best balance":"alternative"}</span></button>`;
-}
-function renderRotationGrid(){
-  const st=engineState();
-  const maxCols=Math.max(1,st.incomingPool.length);
-  $("#rotationGrid").style.setProperty("--bench-cols",maxCols);
-  if(!firstSubMade){
-    $("#gridState").textContent="Waiting for first change";
-    $("#gridHelp").textContent="The first substitution is coach-led. Tap Make substitution when the coach is ready.";
-    $("#rotationGrid").innerHTML=st.on.map(p=>`<div class="rotation-row" style="--bench-cols:1">${gridPlayer(p)}<div class="grid-empty">No suggestions yet</div></div>`).join("");
-    return;
-  }
-  $("#gridState").textContent=`${fmt(st.remaining)} remaining`;
-  $("#gridHelp").textContent="Each row shows the best bench options for that on-pitch player. Tap a replacement to make the change.";
-  const head=`<div class="rotation-row rotation-head"><div>On pitch</div>${st.incomingPool.map((_,i)=>`<div>${i===0?"Best":"Option "+(i+1)}</div>`).join("")}</div>`;
-  const rows=st.on.map(off=>{
-    const eligibility=playerEligible(off);
-    if(!eligibility.ok) return `<div class="rotation-row">${gridPlayer(off)}<div class="grid-empty" style="grid-column:span ${maxCols}">${eligibility.reason}</div></div>`;
-    const opts=rowOptions(off);
-    return `<div class="rotation-row">${gridPlayer(off)}${opts.map(gridOption).join("")}</div>`;
-  }).join("");
-  $("#rotationGrid").innerHTML=head+rows;
-  document.querySelectorAll(".grid-option").forEach(b=>b.onclick=()=>sub(+b.dataset.off,+b.dataset.on,"Suggested change"));
-}
-function renderDebug(opts=suggestionOptions()){
-  if(!$("#debugOutput")) return;
-  const st=engineState(), lines=[];
-  lines.push(`Match: ${fmt(elapsed)} elapsed | ${fmt(st.remaining)} remaining | ${st.slots} on pitch`);
-  lines.push(`Projected equal-share destination: ${fmt(Math.round(st.target))}`);
-  lines.push(`First coach-led substitution: ${firstSubMade?"YES":"NO"}`);
-  lines.push(`Last decision: ${lastDecision}`,"");
-  lines.push("PLAYER STATE");
-  players.forEach(p=>lines.push(`#${p.number} ${p.name.padEnd(10)} ${p.on?"ON   ":"BENCH"} total ${fmt(p.total)}${p.on?` | spell ${fmt(p.spell)}`:""}`));
-  lines.push("");
-  if(!firstSubMade){ lines.push("ENGINE: inactive until the first coach-led substitution."); }
-  else {
-    lines.push(`Lowest bench total: ${fmt(st.minBench)}`);
-    lines.push(`Incoming pool: ${st.incomingPool.map(p=>p.name).join(", ")||"none"}`,"");
-    st.on.forEach(off=>{
-      const e=playerEligible(off);
-      lines.push(`${off.name}: ${e.ok?"eligible":"no suggestions — "+e.reason}`);
-      if(e.ok) rowOptions(off).forEach((o,i)=>lines.push(`  ${i+1}. ${o.incoming.name} | fairness ${Math.round(o.fairness)} | stability ${Math.round(o.stability)} | score ${Math.round(o.score)}`));
-    });
-  }
-  $("#debugOutput").textContent=lines.join("\n");
-  $("#debugState").textContent=firstSubMade?"engine active":"waiting for first sub";
-}
 function renderMatch(){
-  $("#matchClock").textContent=fmt(elapsed);
-  $("#periodLabel").textContent=periodName(currentPeriod());
-  $("#pitchCount").textContent=`${players.filter(p=>p.on).length} playing`;
-  renderRotationGrid();
-  renderDebug();
+  $("#clock").textContent=fmt(elapsed);
+  const pn=Math.min(periodCount,Math.floor(elapsed/periodLength)+1);
+  $("#periodLabel").textContent=periodCount===2?(pn===1?"1st half":"2nd half"):`Period ${pn} of ${periodCount}`;
+  const r=priorities();
+  $("#offList").innerHTML=r.off.map((x,i)=>priorityButton(x,"off",i)).join("")||'<p class="muted">No players on pitch.</p>';
+  $("#onList").innerHTML=r.onRank.map((x,i)=>priorityButton(x,"on",i)).join("")||'<p class="muted">No players on bench.</p>';
+  document.querySelectorAll(".priority").forEach(b=>b.addEventListener("click",()=>{
+    if(b.dataset.type==="off")offPick=+b.dataset.id;else onPick=+b.dataset.id;
+    updateSelection();renderMatch();
+  }));
+  updateSelection(false);renderDebug(r);
 }
-function sub(offId,onId,label="Change"){
-  const off=players.find(p=>p.id===offId), incoming=players.find(p=>p.id===onId);
+function updateSelection(render=true){
+  const a=players.find(p=>p.id===offPick),b=players.find(p=>p.id===onPick);
+  $("#confirm").disabled=!(a&&a.on&&b&&!b.on);
+  $("#selectionText").textContent=a&&b?`Selected: #${a.number} ${a.name} OFF → #${b.number} ${b.name} ON`
+    :a?`#${a.number} ${a.name} selected to come off. Now choose who comes on.`
+    :b?`#${b.number} ${b.name} selected to come on. Now choose who comes off.`
+    :"Select a player to come off, then a player to come on.";
+}
+function renderDebug(r){
+  const avg=players.reduce((s,p)=>s+p.total,0)/players.length;
+  let txt=`Elapsed ${fmt(elapsed)} | Remaining ${fmt(r.remaining)} | Pitch slots ${r.slots}\\n`;
+  txt+=`Current average consumed time: ${fmt(avg)}\\n\\nDUE OFF PRIORITY\\n`;
+  r.off.forEach((x,i)=>txt+=`${i+1}. #${x.p.number} ${x.p.name} total ${fmt(x.p.total)} spell ${fmt(x.p.spell)} | surplus ${Math.round(x.surplus)}s | recent-on penalty ${x.stability.toFixed(2)} | score ${x.score.toFixed(1)}\\n`);
+  txt+=`\\nDUE ON PRIORITY\\n`;
+  r.onRank.forEach((x,i)=>txt+=`${i+1}. #${x.p.number} ${x.p.name} total ${fmt(x.p.total)} | deficit ${Math.round(x.deficit)}s | recent-off penalty ${x.stability.toFixed(2)} | score ${x.score.toFixed(1)}\\n`);
+  txt+=`\\nFAIREST ACHIEVABLE PROJECTION FROM NOW\\n`;
+  players.forEach((p,i)=>txt+=`#${p.number} ${p.name}: ${fmt(r.projected[i])}\\n`);
+  $("#debug").textContent=txt;
+}
+function makeSub(){
+  const off=players.find(p=>p.id===offPick),incoming=players.find(p=>p.id===onPick);
   if(!off?.on||!incoming||incoming.on)return;
-  off.on=false;off.spell=0;off.lastOffAt=elapsed;incoming.on=true;incoming.spell=0;incoming.lastOnAt=elapsed;
-  firstSubMade=true;
-  lastDecision=`${label}: ${off.name} off, ${incoming.name} on at ${fmt(elapsed)}`;
-  $("#status").textContent=`${label}: #${off.number} ${off.name} off, #${incoming.number} ${incoming.name} on.`;
-  renderMatch();
+  off.on=false;off.spell=0;off.lastOffAt=elapsed;
+  incoming.on=true;incoming.spell=0;incoming.lastOnAt=elapsed;
+  $("#status").textContent=`Confirmed: #${off.number} ${off.name} off, #${incoming.number} ${incoming.name} on. Priorities recalculated.`;
+  offPick=null;onPick=null;renderMatch();
 }
-function tick(){
-  if(elapsed>=matchLength){finish();return}
-  elapsed++;
-  players.forEach(p=>{if(p.on){p.total++;p.spell++;}});
-  renderMatch();
-}
-$("#startMatch").addEventListener("click",()=>{
-  try {
-    const hm=Math.max(5,Number($("#halfMinutes").value)||20);
-    periods=Math.max(1,Number($("#periodCount").value)||2);
-    desiredStarters=Math.max(1,Math.min(players.length,Number($("#startingCount").value)||5));
-    periodLength=hm*60; matchLength=periodLength*periods;
-    const selected=players.filter(p=>p.on).length;
-    if(selected!==desiredStarters){
-      $("#setupMessage").textContent=`Select exactly ${desiredStarters} starters (currently ${selected}).`;
-      return;
-    }
-    $("#setupMessage").textContent="";
-    elapsed=0; firstSubMade=false; lastDecision="No substitution yet"; players.forEach(p=>{p.total=0;p.spell=0;p.lastOnAt=p.on?0:null;p.lastOffAt=p.on?null:0;});
-    $("#setupScreen").hidden=true;
-    $("#matchScreen").hidden=false;
-    running=true;
-    $("#pauseBtn").textContent="Pause";
-    clearInterval(timer); timer=setInterval(tick,1000);
-    $("#status").textContent="Match started.";
-    renderMatch();
+$("#confirm").addEventListener("click",makeSub);
 
-  } catch(err) {
-    console.error(err);
-    $("#setupMessage").textContent="Could not start the match. Please refresh and try again.";
-  }
+function tick(){if(elapsed>=matchLength){finish();return}elapsed++;players.forEach(p=>{if(p.on){p.total++;p.spell++}});renderMatch()}
+$("#start").addEventListener("click",()=>{
+  periodLength=Math.max(5,+$("#periodMinutes").value||20)*60;periodCount=Math.max(1,+$("#periods").value||2);matchLength=periodLength*periodCount;
+  pitchSize=Math.max(1,+$("#pitchSize").value||5);
+  if(players.filter(p=>p.on).length!==pitchSize){$("#setupMsg").textContent=`Please select exactly ${pitchSize} starters.`;return}
+  players.forEach(p=>{p.total=0;p.spell=0;p.lastOnAt=p.on?0:null;p.lastOffAt=null});
+  $("#setup").hidden=true;$("#match").hidden=false;running=true;timer=setInterval(tick,1000);renderMatch();
 });
-$("#pauseBtn").onclick=()=>{
-  running=!running;$("#pauseBtn").textContent=running?"Pause":"Resume";
-  clearInterval(timer);if(running)timer=setInterval(tick,1000);
-  $("#status").textContent=running?"Match resumed.":"Match paused.";
-};
-$("#endBtn").onclick=finish;
-
-function openOverride(){
-  overrideOff=null;$("#overrideTitle").textContent="Who is coming off?";
-  $("#overrideTiles").innerHTML=players.filter(p=>p.on).map(p=>matchTile(p,true)).join("");
-  $("#overrideTiles").querySelectorAll(".player-tile").forEach(t=>t.onclick=()=>{
-    overrideOff=+t.dataset.id;$("#overrideTitle").textContent="Who is going on?";
-    $("#overrideTiles").innerHTML=players.filter(p=>!p.on).map(p=>matchTile(p,true)).join("");
-    $("#overrideTiles").querySelectorAll(".player-tile").forEach(x=>x.onclick=()=>{
-      const onId=+x.dataset.id;const off=players.find(p=>p.id===overrideOff),inc=players.find(p=>p.id===onId);
-      sub(overrideOff,onId,"Coach override");$("#overrideDialog").close();
-      $("#status").textContent=`Confirmed: #${off.number} ${off.name} off, #${inc.number} ${inc.name} on.`;
-    });
-  });
-  $("#overrideDialog").showModal();
-}
-$("#overrideBtn").onclick=openOverride;
-$("#cancelOverride").onclick=()=>$("#overrideDialog").close();
+$("#pause").addEventListener("click",()=>{running=!running;clearInterval(timer);if(running)timer=setInterval(tick,1000);$("#pause").textContent=running?"Pause":"Resume"});
+$("#debugBtn").addEventListener("click",()=>{const p=$("#debugPanel");p.hidden=!p.hidden;$("#debugBtn").textContent=p.hidden?"Show debug":"Hide debug"});
+$("#end").addEventListener("click",finish);
 
 function openSingle(mode){
   const pool=mode==="add"?players.filter(p=>!p.on):players.filter(p=>p.on);
-  $("#singleTitle").textContent=mode==="add"?"Add a player to the pitch":"Remove a player from the pitch";
-  $("#singleTiles").innerHTML=pool.map(p=>matchTile(p,true)).join("");
-  $("#singleTiles").querySelectorAll(".player-tile").forEach(t=>t.onclick=()=>{
-    const p=players.find(x=>x.id==t.dataset.id);
-    p.on=mode==="add";p.spell=0;if(mode==="add"){p.lastOnAt=elapsed}else{p.lastOffAt=elapsed}
-    $("#singleActionDialog").close();
-    $("#status").textContent=mode==="add"?`#${p.number} ${p.name} added to the pitch.`:`#${p.number} ${p.name} removed from the pitch.`;
-    renderMatch();
-  });
-  $("#singleActionDialog").showModal();
+  $("#singleTitle").textContent=mode==="add"?"Add player to pitch":"Remove player from pitch";
+  $("#singlePlayers").innerHTML=pool.map(p=>`<button class="tile" data-id="${p.id}"><div class="num">${p.number}</div><div class="pname">${p.name}</div><div class="muted">Total ${fmt(p.total)}</div></button>`).join("");
+  $("#singlePlayers").querySelectorAll(".tile").forEach(b=>b.addEventListener("click",()=>{
+    const p=players.find(x=>x.id==b.dataset.id);p.on=mode==="add";p.spell=0;if(mode==="add")p.lastOnAt=elapsed;else p.lastOffAt=elapsed;
+    $("#singleDialog").close();$("#status").textContent=`#${p.number} ${p.name} ${mode==="add"?"added to":"removed from"} pitch. Priorities recalculated.`;offPick=null;onPick=null;renderMatch();
+  }));
+  $("#singleDialog").showModal();
 }
-$("#addPitchBtn").onclick=()=>openSingle("add");
-$("#removePitchBtn").onclick=()=>openSingle("remove");
-$("#cancelSingle").onclick=()=>$("#singleActionDialog").close();
-
-
-$("#debugBtn").onclick=()=>{
-  const panel=$("#debugPanel");
-  panel.hidden=!panel.hidden;
-  $("#debugBtn").textContent=panel.hidden?"Debug":"Hide debug";
-  if(!panel.hidden) renderDebug();
-};
+$("#add").addEventListener("click",()=>openSingle("add"));$("#remove").addEventListener("click",()=>openSingle("remove"));$("#singleCancel").addEventListener("click",()=>$("#singleDialog").close());
 
 function finish(){
   running=false;clearInterval(timer);
-  const slots=players.reduce((s,p)=>s+p.total,0);
-  const equal=slots/players.length;
-  $("#summaryText").textContent=`Actual equal-share reference for this match: ${fmt(Math.round(equal))} per player.`;
-  $("#summaryList").innerHTML=[...players].sort((a,b)=>b.total-a.total).map(p=>{
-    const d=Math.round((p.total-equal)/60),sign=d>0?"+":"";
-    return `<div class="summary-row"><span>#${p.number} ${p.name}</span><strong>${fmt(p.total)}</strong><span class="delta">${sign}${d} min</span></div>`;
-  }).join("");
-  $("#summaryDialog").showModal();
+  const consumed=players.reduce((s,p)=>s+p.total,0),equal=consumed/players.length;
+  $("#summaryText").textContent=`Match ended at ${fmt(elapsed)} of ${fmt(matchLength)} scheduled. Equal share of actual player-minutes used: ${fmt(equal)}.`;
+  $("#summaryRows").innerHTML=[...players].sort((a,b)=>b.total-a.total).map(p=>{const d=Math.round((p.total-equal)/60);return `<div class="summary-row"><span>#${p.number} ${p.name}</span><strong>${fmt(p.total)}</strong><span class="muted">${d>0?"+":""}${d} min</span></div>`}).join("");
+  $("#summary").showModal();
 }
-$("#newMatchBtn").onclick=()=>location.reload();
-
-renderSetup();</script>
-<div style="position:fixed;right:8px;bottom:6px;font:10px system-ui;color:#7b847e">V8 SINGLE FILE</div></body>
-</html>
-<div class="version-badge">V7 STATE FIX</div>
+$("#newMatch").addEventListener("click",()=>location.reload());
+renderSetup();
+})();
+</script>
+</body></html>
