@@ -1,8 +1,9 @@
 const names=["Alex","Ben","Charlie","Dylan","Ethan","Sam","Jamie","Noah","Leo","Owen"];
 let players=names.map((name,i)=>({id:i,name,number:i+1,on:i<5,total:0,spell:0,lastOnAt:i<5?0:null,lastOffAt:i<5?null:0}));
+let firstSubCompleted=false;
 let elapsed=0,running=false,timer=null,matchLength=2400,periodLength=1200,periods=2,desiredStarters=5;
 let overrideOff=null;
-let firstSubMade=false;
+let firstSubCompleted=false;
 let lastDecision="No substitution yet";
 
 const $=s=>document.querySelector(s);
@@ -96,12 +97,12 @@ function engineState(){
   return {on,bench,remaining,slots,target,minBench,incomingPool};
 }
 function rowOptions(off){
-  if(!firstSubMade) return [];
+  if(!firstSubCompleted) return [];
   const st=engineState();
   return st.incomingPool.map(incoming=>({off,incoming,...projectSwap(off,incoming,st.target,st.remaining,st.slots,st.bench.length)})).sort((a,b)=>a.score-b.score);
 }
 function playerEligible(off){
-  if(!firstSubMade) return {ok:false,reason:"First change is coach-led"};
+  if(!firstSubCompleted) return {ok:false,reason:"First change is coach-led"};
   const st=engineState();
   if(!st.incomingPool.length) return {ok:false,reason:"No bench player needs minutes"};
   // Do not offer a player when the engine says keeping them on is clearly more
@@ -115,7 +116,7 @@ function playerEligible(off){
   return {ok:true,reason:""};
 }
 function suggestionOptions(){
-  if(!firstSubMade) return [];
+  if(!firstSubCompleted) return [];
   const out=[];
   engineState().on.forEach(off=>{
     const e=playerEligible(off); if(!e.ok) return;
@@ -133,7 +134,7 @@ function renderRotationGrid(){
   const st=engineState();
   const maxCols=Math.max(1,st.incomingPool.length);
   $("#rotationGrid").style.setProperty("--bench-cols",maxCols);
-  if(!firstSubMade){
+  if(!firstSubCompleted){
     $("#gridState").textContent="Waiting for first change";
     $("#gridHelp").textContent="The first substitution is coach-led. Tap Make substitution when the coach is ready.";
     $("#rotationGrid").innerHTML=st.on.map(p=>`<div class="rotation-row" style="--bench-cols:1">${gridPlayer(p)}<div class="grid-empty">No suggestions yet</div></div>`).join("");
@@ -156,12 +157,12 @@ function renderDebug(opts=suggestionOptions()){
   const st=engineState(), lines=[];
   lines.push(`Match: ${fmt(elapsed)} elapsed | ${fmt(st.remaining)} remaining | ${st.slots} on pitch`);
   lines.push(`Projected equal-share destination: ${fmt(Math.round(st.target))}`);
-  lines.push(`First coach-led substitution: ${firstSubMade?"YES":"NO"}`);
+  lines.push(`First coach-led substitution: ${firstSubCompleted?"YES":"NO"}`);
   lines.push(`Last decision: ${lastDecision}`,"");
   lines.push("PLAYER STATE");
   players.forEach(p=>lines.push(`#${p.number} ${p.name.padEnd(10)} ${p.on?"ON   ":"BENCH"} total ${fmt(p.total)}${p.on?` | spell ${fmt(p.spell)}`:""}`));
   lines.push("");
-  if(!firstSubMade){ lines.push("ENGINE: inactive until the first coach-led substitution."); }
+  if(!firstSubCompleted){ lines.push("ENGINE: inactive until the first coach-led substitution."); }
   else {
     lines.push(`Lowest bench total: ${fmt(st.minBench)}`);
     lines.push(`Incoming pool: ${st.incomingPool.map(p=>p.name).join(", ")||"none"}`,"");
@@ -172,7 +173,7 @@ function renderDebug(opts=suggestionOptions()){
     });
   }
   $("#debugOutput").textContent=lines.join("\n");
-  $("#debugState").textContent=firstSubMade?"engine active":"waiting for first sub";
+  $("#debugState").textContent=firstSubCompleted?"engine active":"waiting for first sub";
 }
 function renderMatch(){
   $("#matchClock").textContent=fmt(elapsed);
@@ -182,10 +183,11 @@ function renderMatch(){
   renderDebug();
 }
 function sub(offId,onId,label="Change"){
+  firstSubCompleted=true;
   const off=players.find(p=>p.id===offId), incoming=players.find(p=>p.id===onId);
   if(!off?.on||!incoming||incoming.on)return;
   off.on=false;off.spell=0;off.lastOffAt=elapsed;incoming.on=true;incoming.spell=0;incoming.lastOnAt=elapsed;
-  firstSubMade=true;
+  firstSubCompleted=true;
   lastDecision=`${label}: ${off.name} off, ${incoming.name} on at ${fmt(elapsed)}`;
   $("#status").textContent=`${label}: #${off.number} ${off.name} off, #${incoming.number} ${incoming.name} on.`;
   renderMatch();
@@ -208,7 +210,7 @@ $("#startMatch").addEventListener("click",()=>{
       return;
     }
     $("#setupMessage").textContent="";
-    elapsed=0; firstSubMade=false; lastDecision="No substitution yet"; players.forEach(p=>{p.total=0;p.spell=0;p.lastOnAt=p.on?0:null;p.lastOffAt=p.on?null:0;});
+    elapsed=0; firstSubCompleted=false; lastDecision="No substitution yet"; players.forEach(p=>{p.total=0;p.spell=0;p.lastOnAt=p.on?0:null;p.lastOffAt=p.on?null:0;});
     $("#setupScreen").hidden=true;
     $("#matchScreen").hidden=false;
     running=true;
