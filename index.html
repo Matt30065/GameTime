@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Game Time Assistant</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="app">
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">GAME TIME ASSISTANT</p>
+      <div id="matchClock" class="clock">00:00</div>
+    </div>
+    <div class="top-actions">
+      <button id="startPauseBtn" class="btn primary">Start match</button>
+      <button id="endMatchBtn" class="btn danger">End match</button>
+    </div>
+  </header>
+
+  <section class="suggestions panel">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">NEXT CHANGE</p>
+        <h2>Balanced game-time suggestions</h2>
+      </div>
+      <span class="hint">Tap any suggestion to make it</span>
+    </div>
+    <div id="suggestionList" class="suggestion-list"></div>
+    <button id="overrideBtn" class="btn override">Coach override</button>
+  </section>
+
+  <section class="players-grid">
+    <div class="panel">
+      <div class="section-heading"><h2>On pitch</h2><span>5 players</span></div>
+      <div id="onPitch" class="player-list"></div>
+    </div>
+    <div class="panel">
+      <div class="section-heading"><h2>Bench</h2><span>5 players</span></div>
+      <div id="bench" class="player-list"></div>
+    </div>
+  </section>
+
+  <p id="status" class="status" aria-live="polite">Ready for kick-off.</p>
+</main>
+
+<dialog id="overrideDialog">
+  <form method="dialog" id="overrideForm">
+    <h2>Coach override</h2>
+    <p>Choose any player to come off and any player to go on.</p>
+    <label>Player off<select id="offSelect"></select></label>
+    <label>Player on<select id="onSelect"></select></label>
+    <div class="dialog-actions">
+      <button value="cancel" class="btn">Cancel</button>
+      <button id="confirmOverride" value="default" class="btn primary">Confirm change</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="summaryDialog">
+  <div>
+    <p class="eyebrow">FULL TIME</p>
+    <h2>Game-time summary</h2>
+    <p id="summaryTarget"></p>
+    <div id="summaryList" class="summary-list"></div>
+    <button id="closeSummary" class="btn primary">Close</button>
+  </div>
+</dialog>
+
+<script src="script.js"></script>
+</body>
+</html>
